@@ -3,7 +3,6 @@ from mysql.connector import Error
 import re
 import random
 
-
 conn = connect_database()
 if conn is not None:
     try:
@@ -97,7 +96,7 @@ if conn is not None:
             s = 0
             for row in cursor.fetchall():
                 s+=1
-                print(f"Book title: '{title}' found: ")
+                print(f"\nBook title: '{title}' found: ")
                 print(f"Book ID#: {row[0]}, Book Title: {row[1]}, Author ID#: {row[2]}, Genre ID#: {row[3]}, ISBN: {row[4]}, Publication Date: {row[5]}")
                 if row[6] == 1:
                     print("Availability: Checked-In")
@@ -114,7 +113,7 @@ if conn is not None:
             s = 0
             for row in cursor.fetchall():
                 s+=1
-                print(f"Book ID#: {book_id} found: ")
+                print(f"\nBook ID#: {book_id} found: ")
                 print(f"Book ID#: {row[0]}, Book Title: {row[1]}, Author ID#: {row[2]}, Genre ID#: {row[3]}, ISBN: {row[4]}, Publication Date: {row[5]}")
                 if row[6] == 1:
                     print("Availability: Checked-In")
@@ -224,7 +223,7 @@ if conn is not None:
             for row in cursor.fetchall():
                 print(f"User ID#: {row[0]}, User Name: {row[1]}, Library ID Nickname: {row[2]}.")
 
-        def view_user(user_name): #Add option to search by Library_ID or user_ID?
+        def view_user(user_name): 
             view_user = (user_name, )
             query = "Select * from Users\nWHERE name = %s"
             cursor.execute(query, view_user)
@@ -321,12 +320,12 @@ if conn is not None:
                                         if add_bio_choice.lower() == "yes":
                                             biography = []
                                             print(f"\n{title}' added to {auth_name} biography.")
+                                            biography.append(title)
                                             while True:
                                                 bio_add = input(f"Enter books by {auth_name} to add to biography ('end' to finish.): ")
                                                 if bio_add.lower() == "end":
                                                     break
                                                 else:
-                                                    biography.append(title)
                                                     biography.append(bio_add)
                                             add_author(auth_name, biography)
                                         else:
@@ -339,16 +338,19 @@ if conn is not None:
                                     conn.commit()
                                     for row in cursor.fetchall():
                                         auth_id = row[0]
-                                    try:
-                                        publish_date = input("Enter book publication date (YYYY-MM-DD): ")
-                                        pattern_str = r'^\d{4}-\d{2}-\d{2}$'
-                                        if re.match(pattern_str, publish_date):
-                                            if int(publish_date[5]+publish_date[6]) > 12:
-                                                print("Incorrect date format (YYYY-MM-DD).")
-                                        else:
-                                            print("Incorrect date format (YYYY-MM-DD)")
-                                    except Error as e:
-                                        print(f"{e}.")
+                                    while True:
+                                        try:
+                                            publish_date = input("Enter book publication date (YYYY-MM-DD): ")
+                                            pattern_str = r'^\d{4}-\d{2}-\d{2}$'
+                                            if re.match(pattern_str, publish_date):
+                                                if int(publish_date[5]+publish_date[6]) > 12:
+                                                    print("Incorrect date format (YYYY-MM-DD).")
+                                                else:
+                                                    break
+                                            else:
+                                                print("Incorrect date format (YYYY-MM-DD)")
+                                        except Error as e:
+                                            print(f"{e}.")
                                     print("\nChoose a genre for the book from the following list:\n(Genres can be added from the Main Menu, Genre Operations Menu) ")
                                     genre_name_table = []
                                     query = f"Select * from Genres"
@@ -358,7 +360,7 @@ if conn is not None:
                                     for row in cursor.fetchall():
                                         print(row[1])
                                         genre_name_table.append(row[1])
-                                    genre_input = input("Enter selection: ")
+                                    genre_input = input("\nEnter selection: ")
                                     if genre_input not in genre_name_table:
                                         raise Error ("Genre not in list of genres. Please add this genre in the genre menu.")
                                     else:
