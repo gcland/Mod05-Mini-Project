@@ -1,8 +1,7 @@
 from connect_mysql import connect_database
 from mysql.connector import Error
-from book import Book
-from book import NonFiction
-from book import Fiction
+import re
+import random
 
 
 conn = connect_database()
@@ -72,85 +71,142 @@ if conn is not None:
             for row in cursor.fetchall():
                 print(f"Author ID#: {row[0]}, Author Name: {row[1]}, Biography: {row[2]}.")
 
-        def add_book(library):
-            b = 0
-            title = input("Enter book title: ")
-            author = input("Enter book author: ")
-            publish_date = input("Enter book publication date: ")
-            for a in library:
-                b+=1
-            isbn = b+1
-            print(f"'{title}' ISBN: {isbn}.")
-            genre_ask = input("Add genre details to this book? (yes/no) ")
-            if genre_ask.lower() == "yes":
-                fict = input("Is this book fiction or nonfiction? ")
-                category = input("Enter genre of book: ")
-                description = input("Enter a description of the book: ")
-                if fict.lower() == 'fiction':
-                    library[isbn] = Fiction(title, author, isbn, publish_date, category, description)
-                    library[isbn].get_genrebook_details()
-                elif fict.lower() == 'nonfiction':
-                    library[isbn] = NonFiction(title, author, isbn, publish_date, category, description)
-                    library[isbn].get_genrebook_details()
+        def add_book(title, auth_id, genre_name, publish_date):
+            isbn_set = {10}
+            for i in range(1, 5):
+                a = random.randint(1, 9)
+                isbn_set.add(a)    
+            isbn = random.choice(list(isbn_set))
+            view_genre = (genre_name, )
+            query = "Select * from Genres\nWHERE name = %s"
+            cursor.execute(query, view_genre)
+            conn.commit()
+            for row in cursor.fetchall():
+                genre_id = row[0]
+            book_add = (title, auth_id, genre_id, isbn, publish_date)
+            query = "Insert into Books (title, author_id, genre_id, isbn, publication_date) values (%s, %s, %s, %s, %s)"
+            cursor.execute(query, book_add)
+            conn.commit()
+            print(f"New book: {title}, added successfully.")
+
+        def book_search_name(title):
+            view_book = (title, )
+            query = "Select * from Books\nWHERE title = %s"
+            cursor.execute(query, view_book)
+            conn.commit()
+            s = 0
+            for row in cursor.fetchall():
+                s+=1
+                print(f"Book title: '{title}' found: ")
+                print(f"Book ID#: {row[0]}, Book Title: {row[1]}, Author ID#: {row[2]}, Genre ID#: {row[3]}, ISBN: {row[4]}, Publication Date: {row[5]}")
+                if row[6] == 1:
+                    print("Availability: Checked-In")
                 else:
-                    print("Invalid selection.")
-            else:   
-                library[isbn] = Book(title, author, isbn, publish_date)
-                library[isbn].get_status()
+                    print("Availability: Checked-Out")
+            if s == 0:
+                print(f"No book with name: {title} found.")
 
-        def book_search(library):
-            try:
-                choice = input("Search book by title or by ISBN? ")
-                if choice.lower() == 'isbn':
-                    isbn = int(input("Input book ISBN: "))
-                    library[isbn].get_book_details()
-                if choice.lower() == "title":
-                    title = input("Input book title: ")
-                    for isbn in library:
-                        if title == library[isbn].get_title():
-                            library[isbn].get_book_details()
-            except Exception as e:
-                print(f"Error: {e}.")
+        def book_search_id(book_id):
+            view_book = (book_id, )
+            query = "Select * from Books\nWHERE id = %s"
+            cursor.execute(query, view_book)
+            conn.commit()
+            s = 0
+            for row in cursor.fetchall():
+                s+=1
+                print(f"Book ID#: {book_id} found: ")
+                print(f"Book ID#: {row[0]}, Book Title: {row[1]}, Author ID#: {row[2]}, Genre ID#: {row[3]}, ISBN: {row[4]}, Publication Date: {row[5]}")
+                if row[6] == 1:
+                    print("Availability: Checked-In")
+                else:
+                    print("Availability: Checked-Out")
+            if s == 0:
+                print(f"No book with ID: {book_id} found.")
 
-        def display_all_books(library, isbn, checked_out):
-            int(isbn)
-            print(f"\nTitle: {library[isbn].get_title()} by {library[isbn].get_author()}")
-            print(f"Publish date: {library[isbn].get_publish_date()}")
-            print(f"ISBN: {library[isbn].get_isbn()}")
-            if library[isbn].get_status() == True:
-                print(f"Availability: Checked-in")
-            else:
-                print(f"Availability: Checked-out with {checked_out[isbn]}")    
+        def display_all_books():
+            query = f"Select * from Books"
+            cursor.execute(query)
+            print(f"\nBooks table:")
+            for row in cursor.fetchall():
+                print(f"Book ID#: {row[0]}, Book Title: {row[1]}, Author ID#: {row[2]}, Genre ID#: {row[3]}, ISBN: {row[4]}, Publication Date: {row[5]}")
 
-        def view_genre(library):
-            for isbn in library:
-                try:
-                    library[isbn].get_genrebook_details()
-                except:
-                    library[isbn].get_book_details()
+                if row[6] == 1:
+                    print("Availability: Checked-In")
+                else:
+                    print("Availability: Checked-Out")
 
-        def checkout_book(library, checked_out, users):
-            isbn = int(input("Enter ISBN of the book to borrow: "))
-            library_ID = int(input("Enter library ID: "))
-            if isbn in library and library[isbn].borrow_book() and library_ID in users:
-                users[library_ID].borrow_book(library[isbn].get_title())
-                user_name = users[library_ID].get_user_name()
-                checked_out[isbn] = user_name
-                print(f"'{library[isbn].get_title()}' checked out with {user_name}.")
-            else:
-                print("Book checked-out, is not in library, or user ID incorrect.")
+        def view_genre_name(genre_name):
+            view_genre = (genre_name, )
+            query = "Select * from Genres\nWHERE name = %s"
+            cursor.execute(query, view_genre)
+            conn.commit()
+            s = 0
+            for row in cursor.fetchall():
+                s+=1
+                print(f"Genre '{genre_name}' found: ")
+                print(f"Genre ID#: {row[0]}, Genre Name: {row[1]}, Genre Category: {row[3]}\nGenre Description: {row[2]}.")
+            if s == 0:
+                print(f"No genre, '{genre_name}' found.")
 
-        def checkin_book(library, checked_out, users):
-            isbn = int(input("Enter ISBN of the book to return: "))
-            if isbn in library and isbn in checked_out:
-                library[isbn].return_book()
-                del checked_out[isbn]
-                for library_ID in users:
-                    if library[isbn].get_title() in users[library_ID].get_borrowed_books():
-                        users[library_ID].return_book(library[isbn].get_title())
-                print(f"Book '{library[isbn].get_title()}' checked-in.")
-            else:
-                print("Invalid ISBN or book is checked-in.")
+        def view_genre_id(genre_id):
+            view_genre = (genre_id, )
+            query = "Select * from Genres\nWHERE id = %s"
+            cursor.execute(query, view_genre)
+            conn.commit()
+            s = 0
+            for row in cursor.fetchall():
+                s+=1
+                print(f"Genre ID#: {genre_id} found: ")
+                print(f"Genre ID#: {row[0]}, Genre Name: {row[1]}, Genre Category: {row[3]}\nGenre Description: {row[2]}.")
+            if s == 0:
+                print(f"No genre with ID: {genre_id} found.")
+
+        def view_genre_category(genre_category):
+            view_genre = (genre_category, )
+            query = "Select * from Genres\nWHERE category = %s"
+            cursor.execute(query, view_genre)
+            conn.commit()
+            s = 0
+            for row in cursor.fetchall():
+                s+=1
+                print(f"Genre '{genre_category}' found: ")
+                print(f"Genre ID#: {row[0]}, Genre Name: {row[1]}, Genre Category: {row[3]}\nGenre Description: {row[2]}.")
+            if s == 0:
+                print(f"No genres with category: '{genre_category}' found.")
+        
+        def add_genre(genre_name, genre_details, genre_category):
+            genre_add = (genre_name, genre_details, genre_category)
+            query = "Insert into Genres (name, description, category) values (%s, %s, %s)"
+            cursor.execute(query, genre_add)
+            conn.commit()
+            print(f"New Genre: '{genre_name}', added successfully.")
+            
+        def view_all_genres():
+            query = f"Select * from Genres"
+            cursor.execute(query)
+            print(f"\nGenres table:")
+            for row in cursor.fetchall():
+                print(f"Genre ID#: {row[0]}, Genre Name: {row[1]}, Genre Category: {row[3]}\nGenre Description: {row[2]}.")
+                
+        def checkout_book():
+            isbn = int(input("Enter ISBN of the book to check out: "))
+            checkout_book = (isbn, )
+            if type(isbn) is not int:
+                raise TypeError(f"ISBN must be an integer.")
+            query = "UPDATE Books\nSET\navailability = 0 WHERE ISBN = %s"
+            cursor.execute(query, checkout_book)
+            conn.commit()
+            print(f"Book ISBN: {isbn} now checked out.")
+
+        def checkin_book():
+            isbn = int(input("Enter ISBN of the book to check in: "))
+            checkin_book = (isbn, )
+            if type(isbn) is not int:
+                raise TypeError(f"ISBN must be an integer.")
+            query = "UPDATE Books\nSET\navailability = 1 WHERE ISBN = %s"
+            cursor.execute(query, checkin_book)
+            conn.commit()
+            print(f"Book ISBN: {isbn} now checked in.")
 
         def add_user(user_name):
             library_ID = input("Enter library ID nickname: ")
@@ -211,14 +267,14 @@ if conn is not None:
             print("\nWelcome to the Library Management System!")
             while True:
                 print("\nLibrary Management System Main Menu:")
-                print("\n1. User Operations\n2. Book Operations\n3. Author Operations\n4. Quit")
-                choice_main = input("Enter selection: ")
+                print("\n1. User Operations\n2. Book Operations\n3. Author Operations\n4. Genre Operations\n5. Quit")
+                choice_main = input("\nEnter selection: ")
                 try:
                     if choice_main == '3':
                         while True:
                             print("\nAuthor Operations Menu:")
                             print("1. Add a new author\n2. View author details\n3. Display all authors\n4. Return")
-                            choice = input("Enter selection: ")
+                            choice = input("\nEnter selection: ")
                             try: 
                                 if choice == '1':
                                     auth_name = input("Enter author name: ")
@@ -242,23 +298,90 @@ if conn is not None:
                     if choice_main == '2':
                         while True:
                             print("\nBook Operations Menu:")
-                            print("1. Add a book\n2. Check-out a book\n3. Check-in a book\n4. Search for a book\n5. View genre details of all books\n6. Display all books\n7. Return")
-                            choice = input("Enter selection: ")
+                            print("1. Add a book\n2. Check-out a book\n3. Check-in a book\n4. Search for a book\n5. Display all books\n6. Return")
+                            choice = input("\nEnter selection: ")
                             try: 
                                 if choice == '1':
-                                    add_book(library)
+                                    title = input("Enter book title: ")
+                                    auth_name = input("Enter book author: ")
+                                    if type(auth_name) is int:
+                                        raise TypeError(f"Name cannot be an integer.")
+                                    view_auth = (auth_name, )
+                                    query = "Select * from authors\nWHERE name = %s"
+                                    cursor.execute(query, view_auth)
+                                    conn.commit()
+                                    s = 0
+                                    for row in cursor.fetchall():
+                                        s+=1
+                                        print(f"\nAuthor '{auth_name}' found: ")
+                                        print(f"Author ID#: {row[0]}, Author Name: {row[1]}, Biography: {row[2]}.")
+                                    if s == 0:
+                                        print(f"No author, '{auth_name}' found. Continue to add '{auth_name}' to database.")
+                                        add_bio_choice = input(f"Add more books to {auth_name} biography? (yes/no) ")
+                                        if add_bio_choice.lower() == "yes":
+                                            biography = []
+                                            print(f"\n{title}' added to {auth_name} biography.")
+                                            while True:
+                                                bio_add = input(f"Enter books by {auth_name} to add to biography ('end' to finish.): ")
+                                                if bio_add.lower() == "end":
+                                                    break
+                                                else:
+                                                    biography.append(title)
+                                                    biography.append(bio_add)
+                                            add_author(auth_name, biography)
+                                        else:
+                                            biography = []
+                                            biography.append(title)
+                                            add_author(auth_name, biography)
+                                    view_auth = (auth_name, )
+                                    query = "Select * from authors\nWHERE name = %s"
+                                    cursor.execute(query, view_auth)
+                                    conn.commit()
+                                    for row in cursor.fetchall():
+                                        auth_id = row[0]
+                                    try:
+                                        publish_date = input("Enter book publication date (YYYY-MM-DD): ")
+                                        pattern_str = r'^\d{4}-\d{2}-\d{2}$'
+                                        if re.match(pattern_str, publish_date):
+                                            if int(publish_date[5]+publish_date[6]) > 12:
+                                                print("Incorrect date format (YYYY-MM-DD).")
+                                        else:
+                                            print("Incorrect date format (YYYY-MM-DD)")
+                                    except Error as e:
+                                        print(f"{e}.")
+                                    print("\nChoose a genre for the book from the following list:\n(Genres can be added from the Main Menu, Genre Operations Menu) ")
+                                    genre_name_table = []
+                                    query = f"Select * from Genres"
+                                    cursor.execute(query)
+                                    conn.commit()
+                                    print(f"\nGenres table:")
+                                    for row in cursor.fetchall():
+                                        print(row[1])
+                                        genre_name_table.append(row[1])
+                                    genre_input = input("Enter selection: ")
+                                    if genre_input not in genre_name_table:
+                                        raise Error ("Genre not in list of genres. Please add this genre in the genre menu.")
+                                    else:
+                                        add_book(title, auth_id, genre_input, publish_date)
                                 elif choice =='2':
-                                    checkout_book(library, checked_out, users)
+                                    checkout_book()
                                 elif choice == '3':
-                                    checkin_book(library, checked_out, users)
+                                    checkin_book()
                                 elif choice =='4':
-                                    book_search(library)
+                                    print("\nChoose one of the following to search by: ")
+                                    print("\n1. Book ID\n2. Book Title\n3. Return")
+                                    book_choice = input("\nEnter selection: ")
+                                    if book_choice == '1':
+                                        book_id = input("Enter Book ID#: ")
+                                        book_search_id(book_id)
+                                    if book_choice == '2':
+                                        book_title = input("Enter book title: ")
+                                        book_search_name(book_title)
+                                    else:
+                                        break
                                 elif choice == '5':
-                                    view_genre(library)
+                                    display_all_books()
                                 elif choice == '6':
-                                    for isbn in library:
-                                        display_all_books(library, isbn, checked_out)
-                                elif choice == '7':
                                     break
                             except Exception as e:
                                 print(f"Error: {e}.")
@@ -266,7 +389,7 @@ if conn is not None:
                         while True:
                             print("\nUser Operations Menu:")
                             print("1. Add a new user\n2. Search for user and details\n3. Display all users and details\n4. Return")
-                            choice = input("Enter selection: ")
+                            choice = input("\nEnter selection: ")
                             try: 
                                 if choice == '1':
                                     user_name = input("Enter user name: ")
@@ -281,11 +404,43 @@ if conn is not None:
                             except Exception as e:
                                 print(f"Error: {e}.")
                     elif choice_main == '4':
+                        while True:
+                            print("\nGenre Operations Menu:")
+                            print("1. Add a new genre\n2. Search for a genre\n3. Display all genres\n4. Return")
+                            choice = input("\nEnter selection: ")
+                            try: 
+                                if choice == '1':
+                                    genre_name = input("Enter genre name: ")
+                                    genre_details = input("Enter genre description: ")
+                                    genre_category = input("Enter general category of genre: ")
+                                    add_genre(genre_name, genre_details, genre_category)
+                                elif choice =='2':
+                                    print("\nChoose one of the following to search by: ")
+                                    print("\n1. Genre ID\n2. Genre name\n3. Genre category\n4. Return")
+                                    genre_choice = input("Enter selection: ")
+                                    if genre_choice == '1':
+                                        genre_id = input("Enter genre ID#: ")
+                                        view_genre_id(genre_id)
+                                    if genre_choice == '2':
+                                        genre_name = input("Enter genre name: ")
+                                        view_genre_name(genre_name)
+                                    if genre_choice == '3':
+                                        genre_category = input("Enter genre category: ")
+                                        view_genre_category(genre_category)
+                                    else:
+                                        break
+                                elif choice == '3':
+                                    view_all_genres()
+                                elif choice =='4':
+                                    break
+                            except Exception as e:
+                                print(f"Error: {e}.")
+                    elif choice_main == '5':
                         break
                 except Exception as e:
                     print(f'Error: {e}.')
                 finally:
-                    print("Thank you for using the Library Management System!")
+                    print("\nThank you for using the Library Management System!")
 
         main()
 
@@ -298,4 +453,4 @@ if conn is not None:
     finally:
         cursor.close()
         conn.close()
-        print("\nMySQL connection is closed.")
+        print("MySQL connection is closed.")
